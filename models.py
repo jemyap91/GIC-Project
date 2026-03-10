@@ -24,3 +24,12 @@ class Direction(Enum):
             Direction.W: (-1, 0),
         }
         return deltas[self]
+
+
+@dataclass
+class Field:
+    width: int
+    height: int
+
+    def is_within_bounds(self, x: int, y: int) -> bool:
+        return 0 <= x < self.width and 0 <= y < self.height
