@@ -96,3 +96,114 @@ class TestBoundaryHandling:
         assert results[0].x == 0
         assert results[0].y == 0
         assert results[0].direction == Direction.W
+
+
+class TestMultiCarCollision:
+    """Scenario 2 from spec: two cars collide at (5,4) at step 7."""
+
+    def test_spec_scenario_2_collision(self):
+        field = Field(10, 10)
+        car_a = Car(name="A", x=1, y=2, direction=Direction.N, commands="FFRFFFFRRL")
+        car_b = Car(name="B", x=7, y=8, direction=Direction.W, commands="FFLFFFFFFF")
+        sim = Simulation(field, [car_a, car_b])
+        results = sim.run()
+
+        result_a = results[0]
+        result_b = results[1]
+
+        assert result_a.collided is True
+        assert result_a.x == 5
+        assert result_a.y == 4
+        assert result_a.collision_step == 7
+        assert result_a.collision_partner == "B"
+
+        assert result_b.collided is True
+        assert result_b.x == 5
+        assert result_b.y == 4
+        assert result_b.collision_step == 7
+        assert result_b.collision_partner == "A"
+
+    def test_two_cars_no_collision(self):
+        field = Field(10, 10)
+        car_a = Car(name="A", x=0, y=0, direction=Direction.N, commands="FF")
+        car_b = Car(name="B", x=9, y=9, direction=Direction.S, commands="FF")
+        sim = Simulation(field, [car_a, car_b])
+        results = sim.run()
+
+        assert results[0].collided is False
+        assert results[0].x == 0
+        assert results[0].y == 2
+
+        assert results[1].collided is False
+        assert results[1].x == 9
+        assert results[1].y == 7
+
+    def test_unequal_command_lengths(self):
+        """Car B has fewer commands. After B stops, A continues."""
+        field = Field(10, 10)
+        car_a = Car(name="A", x=0, y=0, direction=Direction.N, commands="FFFFF")
+        car_b = Car(name="B", x=5, y=5, direction=Direction.E, commands="FF")
+        sim = Simulation(field, [car_a, car_b])
+        results = sim.run()
+
+        assert results[0].x == 0
+        assert results[0].y == 5
+        assert results[0].collided is False
+
+        assert results[1].x == 7
+        assert results[1].y == 5
+        assert results[1].collided is False
+
+    def test_collision_stops_further_commands(self):
+        """After collision, collided cars don't move further."""
+        field = Field(10, 10)
+        car_a = Car(name="A", x=0, y=0, direction=Direction.E, commands="FFF")
+        car_b = Car(name="B", x=1, y=0, direction=Direction.N, commands="FFF")
+        sim = Simulation(field, [car_a, car_b])
+        results = sim.run()
+
+        assert results[0].collided is True
+        assert results[0].x == 1
+        assert results[0].y == 0
+        assert results[0].collision_step == 1
+
+        assert results[1].collided is True
+        assert results[1].x == 1
+        assert results[1].y == 0
+        assert results[1].collision_step == 1
+
+    def test_car_collides_with_already_stopped_car(self):
+        """A third car can collide with an already-collided stationary car."""
+        field = Field(10, 10)
+        car_a = Car(name="A", x=0, y=0, direction=Direction.E, commands="FFF")
+        car_b = Car(name="B", x=1, y=0, direction=Direction.N, commands="FFF")
+        car_c = Car(name="C", x=3, y=0, direction=Direction.W, commands="FF")
+        sim = Simulation(field, [car_a, car_b, car_c])
+        results = sim.run()
+
+        assert results[0].collided is True
+        assert results[0].collision_step == 1
+        assert results[0].collision_partner == "B"
+
+        assert results[1].collided is True
+        assert results[1].collision_step == 1
+
+        assert results[2].collided is True
+        assert results[2].x == 1
+        assert results[2].y == 0
+        assert results[2].collision_step == 2
+
+    def test_duplicate_starting_position_collision(self):
+        """Sequential processing: A moves first, B moves to A's old position — no collision."""
+        field = Field(10, 10)
+        car_a = Car(name="A", x=5, y=5, direction=Direction.N, commands="F")
+        car_b = Car(name="B", x=4, y=5, direction=Direction.E, commands="F")
+        sim = Simulation(field, [car_a, car_b])
+        results = sim.run()
+
+        assert results[0].collided is False
+        assert results[0].x == 5
+        assert results[0].y == 6
+        assert results[1].collided is False
+        assert results[1].x == 5
+        assert results[1].y == 5

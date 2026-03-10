@@ -42,6 +42,7 @@ class Simulation:
 
                 command = state.commands[step]
                 self._execute_command(state, command)
+                self._check_collisions(state, step + 1)
 
         return [
             SimulationResult(
@@ -55,6 +56,22 @@ class Simulation:
             )
             for s in self.states
         ]
+
+    def _check_collisions(self, moved_state: _CarState, step: int) -> None:
+        for other in self.states:
+            if other is moved_state:
+                continue
+            if other.x == moved_state.x and other.y == moved_state.y:
+                moved_state.active = False
+                moved_state.collided = True
+                moved_state.collision_step = step
+                moved_state.collision_partner = other.name
+
+                if other.active:
+                    other.active = False
+                    other.collided = True
+                    other.collision_step = step
+                    other.collision_partner = moved_state.name
 
     def _execute_command(self, state: _CarState, command: str) -> None:
         if command == "L":
