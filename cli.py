@@ -2,6 +2,7 @@ from typing import Callable
 
 from models import Car, Direction, Field
 from simulation import Simulation
+from visualizer import replay
 
 
 class App:
@@ -16,7 +17,17 @@ class App:
     def run(self) -> None:
         while True:
             field, cars = self._setup_phase()
-            results = Simulation(field, cars).run()
+            sim = Simulation(field, cars)
+
+            # Collect steps for visualization
+            steps = list(sim.run_steps())
+
+            # Replay visualization if there are steps
+            if steps:
+                replay(field, cars, steps, self._input, self._print)
+
+            # Build results from the already-executed simulation states
+            results = sim.get_results()
             self._show_results(cars, results)
 
             if not self._post_simulation_menu():

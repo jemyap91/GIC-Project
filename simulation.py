@@ -1,3 +1,4 @@
+from collections.abc import Generator
 from dataclasses import dataclass
 
 from models import Car, Direction, Field, SimulationResult
@@ -31,6 +32,40 @@ class Simulation:
         ]
 
     def run(self) -> list[SimulationResult]:
+        for _ in self.run_steps():
+            pass
+        return self.get_results()
+
+    def get_results(self) -> list[SimulationResult]:
+        """Return results from current state (call after run() or run_steps())."""
+        return [
+            SimulationResult(
+                car_name=s.name,
+                x=s.x,
+                y=s.y,
+                direction=s.direction,
+                collided=s.collided,
+                collision_step=s.collision_step,
+                collision_partner=s.collision_partner,
+            )
+            for s in self.states
+        ]
+
+    def _snapshot(self) -> list[dict]:
+        return [
+            {
+                "name": s.name,
+                "x": s.x,
+                "y": s.y,
+                "direction": s.direction,
+                "collided": s.collided,
+                "collision_step": s.collision_step,
+                "collision_partner": s.collision_partner,
+            }
+            for s in self.states
+        ]
+
+    def run_steps(self) -> Generator[list[dict], None, None]:
         max_commands = max((len(s.commands) for s in self.states), default=0)
 
         for step in range(max_commands):
@@ -44,18 +79,7 @@ class Simulation:
                 self._execute_command(state, command)
                 self._check_collisions(state, step + 1)
 
-        return [
-            SimulationResult(
-                car_name=s.name,
-                x=s.x,
-                y=s.y,
-                direction=s.direction,
-                collided=s.collided,
-                collision_step=s.collision_step,
-                collision_partner=s.collision_partner,
-            )
-            for s in self.states
-        ]
+            yield self._snapshot()
 
     def _check_collisions(self, moved_state: _CarState, step: int) -> None:
         for other in self.states:

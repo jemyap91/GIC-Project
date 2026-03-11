@@ -16,6 +16,11 @@ def make_app(inputs: list[str]) -> tuple[App, list[str]]:
     return app, output_lines
 
 
+def enter_steps(n: int) -> list[str]:
+    """Generate n Enter key presses for visualization replay."""
+    return [""] * n
+
+
 class TestCLIFieldSetup:
     def test_welcome_message_and_field_creation(self):
         inputs = ["10 10", "2", "2"]  # create field, run (no cars), exit
@@ -33,8 +38,9 @@ class TestCLIAddCar:
             "1",         # add car
             "A",         # car name
             "1 2 N",     # position
-            "FFRFFFFRRL",  # commands
+            "FFRFFFFRRL",  # commands (10 steps)
             "2",         # run simulation
+            *enter_steps(10),  # Enter through 10 visualization steps
             "2",         # exit
         ]
         app, output = make_app(inputs)
@@ -49,6 +55,7 @@ class TestCLISimulation:
         inputs = [
             "10 10", "1", "A", "1 2 N", "FFRFFFFRRL",
             "2",  # run
+            *enter_steps(10),  # 10 steps
             "2",  # exit
         ]
         app, output = make_app(inputs)
@@ -62,6 +69,7 @@ class TestCLISimulation:
             "1", "A", "1 2 N", "FFRFFFFRRL",
             "1", "B", "7 8 W", "FFLFFFFFFF",
             "2",  # run
+            *enter_steps(10),  # max(10, 10) = 10 steps
             "2",  # exit
         ]
         app, output = make_app(inputs)
@@ -75,10 +83,12 @@ class TestCLISimulation:
             "10 10",
             "1", "A", "1 2 N", "FF",
             "2",  # run
+            *enter_steps(2),  # 2 steps
             "1",  # start over
             "5 5",  # new field
             "1", "B", "0 0 N", "F",
             "2",  # run
+            *enter_steps(1),  # 1 step
             "2",  # exit
         ]
         app, output = make_app(inputs)
@@ -121,6 +131,7 @@ class TestCLIValidation:
             "1", "A",  # duplicate name
             "1", "B", "3 3 E", "FF",  # valid second car
             "2",  # run
+            *enter_steps(2),  # max(2, 2) = 2 steps
             "2",  # exit
         ]
         app, output = make_app(inputs)
@@ -135,6 +146,7 @@ class TestCLIValidation:
             "10 10 N",  # out of bounds
             "1", "A", "2 2 N", "FF",  # retry with valid
             "2",  # run
+            *enter_steps(2),  # 2 steps
             "2",  # exit
         ]
         app, output = make_app(inputs)
@@ -147,6 +159,7 @@ class TestCLIValidation:
             "10 10",
             "1", "A", "1 2 n", "ff",  # lowercase
             "2",  # run
+            *enter_steps(2),  # 2 steps
             "2",  # exit
         ]
         app, output = make_app(inputs)
@@ -161,9 +174,46 @@ class TestCLIValidation:
             "1", "B", "1 2 E",  # same position as A
             "1", "B", "3 3 E", "FF",  # valid position
             "2",  # run
+            *enter_steps(2),  # max(2, 2) = 2 steps
             "2",  # exit
         ]
         app, output = make_app(inputs)
         app.run()
 
         assert any("already at that position" in line for line in output)
+
+
+class TestCLIVisualization:
+    def test_simulation_shows_grid_steps(self):
+        """Verify the grid is rendered during simulation."""
+        inputs = [
+            "10 10",
+            "1", "A", "1 2 N", "FF",
+            "2",   # run simulation
+            "",    # Enter for step 1
+            "",    # Enter for step 2 (simulation complete)
+            "2",   # exit
+        ]
+        app, output = make_app(inputs)
+        app.run()
+
+        # Should see step indicators
+        assert any("Step 1 of 2" in line for line in output)
+        assert any("Step 2 of 2" in line for line in output)
+        # Should see grid borders
+        assert any(line.startswith("+") and line.endswith("+") for line in output)
+        # Should still see final results
+        assert any("A, (1,4) N" in line for line in output)
+
+    def test_simulation_with_no_cars_skips_visualization(self):
+        """No cars means no steps, so no visualization."""
+        inputs = [
+            "10 10",
+            "2",  # run (no cars)
+            "2",  # exit
+        ]
+        app, output = make_app(inputs)
+        app.run()
+
+        assert not any("Step" in line for line in output)
+        assert any("Thank you for running the simulation. Goodbye!" in line for line in output)
