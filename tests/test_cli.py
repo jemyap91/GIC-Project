@@ -97,3 +97,73 @@ class TestCLISimulation:
         app.run()
 
         assert any("Thank you for running the simulation. Goodbye!" in line for line in output)
+
+
+class TestCLIValidation:
+    def test_invalid_field_dimensions_reprompts(self):
+        inputs = [
+            "abc",       # invalid
+            "-1 5",      # invalid (negative)
+            "10 10",     # valid
+            "2",         # run
+            "2",         # exit
+        ]
+        app, output = make_app(inputs)
+        app.run()
+
+        invalid_count = sum(1 for line in output if "Invalid input" in line)
+        assert invalid_count == 2
+
+    def test_duplicate_car_name_rejected(self):
+        inputs = [
+            "10 10",
+            "1", "A", "1 2 N", "FF",
+            "1", "A",  # duplicate name
+            "1", "B", "3 3 E", "FF",  # valid second car
+            "2",  # run
+            "2",  # exit
+        ]
+        app, output = make_app(inputs)
+        app.run()
+
+        assert any("already exists" in line for line in output)
+
+    def test_position_outside_field_rejected(self):
+        inputs = [
+            "5 5",
+            "1", "A",
+            "10 10 N",  # out of bounds
+            "1", "A", "2 2 N", "FF",  # retry with valid
+            "2",  # run
+            "2",  # exit
+        ]
+        app, output = make_app(inputs)
+        app.run()
+
+        assert any("Invalid input" in line for line in output)
+
+    def test_case_insensitive_direction(self):
+        inputs = [
+            "10 10",
+            "1", "A", "1 2 n", "ff",  # lowercase
+            "2",  # run
+            "2",  # exit
+        ]
+        app, output = make_app(inputs)
+        app.run()
+
+        assert any("A, (1,4) N" in line for line in output)
+
+    def test_duplicate_starting_position_rejected(self):
+        inputs = [
+            "10 10",
+            "1", "A", "1 2 N", "FF",
+            "1", "B", "1 2 E",  # same position as A
+            "1", "B", "3 3 E", "FF",  # valid position
+            "2",  # run
+            "2",  # exit
+        ]
+        app, output = make_app(inputs)
+        app.run()
+
+        assert any("already at that position" in line for line in output)
