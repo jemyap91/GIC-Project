@@ -207,3 +207,71 @@ class TestMultiCarCollision:
         assert results[1].collided is False
         assert results[1].x == 5
         assert results[1].y == 5
+
+
+class TestRunSteps:
+    def test_run_steps_yields_correct_number_of_steps(self):
+        field = Field(10, 10)
+        car = Car(name="A", x=0, y=0, direction=Direction.N, commands="FFF")
+        sim = Simulation(field, [car])
+        steps = list(sim.run_steps())
+        assert len(steps) == 3
+
+    def test_run_steps_yields_initial_state_first(self):
+        field = Field(10, 10)
+        car = Car(name="A", x=0, y=0, direction=Direction.N, commands="FF")
+        sim = Simulation(field, [car])
+        steps = list(sim.run_steps())
+
+        # Step 1: moved to (0,1)
+        assert steps[0][0]["x"] == 0
+        assert steps[0][0]["y"] == 1
+
+        # Step 2: moved to (0,2)
+        assert steps[1][0]["x"] == 0
+        assert steps[1][0]["y"] == 2
+
+    def test_run_steps_includes_collision_info(self):
+        field = Field(10, 10)
+        car_a = Car(name="A", x=0, y=0, direction=Direction.E, commands="FFF")
+        car_b = Car(name="B", x=1, y=0, direction=Direction.N, commands="FFF")
+        sim = Simulation(field, [car_a, car_b])
+        steps = list(sim.run_steps())
+
+        # Step 1: A moves to (1,0), collides with B
+        step1 = steps[0]
+        a_state = next(s for s in step1 if s["name"] == "A")
+        b_state = next(s for s in step1 if s["name"] == "B")
+        assert a_state["collided"] is True
+        assert b_state["collided"] is True
+
+        # Only 1 step yielded since both cars collide at step 1
+        # (remaining steps have no active cars, but steps continue for max_commands)
+        assert len(steps) == 3  # 3 steps total (max command length)
+
+    def test_run_steps_empty_cars(self):
+        field = Field(10, 10)
+        sim = Simulation(field, [])
+        steps = list(sim.run_steps())
+        assert len(steps) == 0
+
+    def test_run_and_run_steps_produce_same_final_state(self):
+        """run() and run_steps() must produce identical final results."""
+        field = Field(10, 10)
+        cars = [
+            Car(name="A", x=1, y=2, direction=Direction.N, commands="FFRFFFFRRL"),
+            Car(name="B", x=7, y=8, direction=Direction.W, commands="FFLFFFFFFF"),
+        ]
+
+        sim1 = Simulation(field, cars)
+        results = sim1.run()
+
+        sim2 = Simulation(field, cars)
+        steps = list(sim2.run_steps())
+        last_step = steps[-1]
+
+        for result, state in zip(results, last_step):
+            assert result.car_name == state["name"]
+            assert result.x == state["x"]
+            assert result.y == state["y"]
+            assert result.collided == state["collided"]
