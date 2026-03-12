@@ -8,22 +8,21 @@ class Direction(Enum):
     S = "S"
     W = "W"
 
-    def turn_right(self) -> "Direction":
+    def turn_right(self):
         order = [Direction.N, Direction.E, Direction.S, Direction.W]
         return order[(order.index(self) + 1) % 4]
 
-    def turn_left(self) -> "Direction":
+    def turn_left(self):
         order = [Direction.N, Direction.E, Direction.S, Direction.W]
         return order[(order.index(self) - 1) % 4]
 
-    def move_delta(self) -> tuple[int, int]:
-        deltas = {
+    def move_delta(self):
+        return {
             Direction.N: (0, 1),
             Direction.S: (0, -1),
             Direction.E: (1, 0),
             Direction.W: (-1, 0),
-        }
-        return deltas[self]
+        }[self]
 
 
 @dataclass
@@ -31,7 +30,7 @@ class Field:
     width: int
     height: int
 
-    def is_within_bounds(self, x: int, y: int) -> bool:
+    def is_within_bounds(self, x, y):
         return 0 <= x < self.width and 0 <= y < self.height
 
 
@@ -43,7 +42,7 @@ class Car:
     direction: Direction
     commands: str
 
-    def __str__(self) -> str:
+    def __str__(self):
         return f"{self.name}, ({self.x},{self.y}) {self.direction.value}, {self.commands}"
 
 
@@ -57,7 +56,7 @@ class SimulationResult:
     collision_step: int | None
     collision_partner: str | None
 
-    def __str__(self) -> str:
+    def __str__(self):
         if self.collided:
             return (
                 f"{self.car_name}, collides with {self.collision_partner} "

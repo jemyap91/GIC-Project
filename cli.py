@@ -1,43 +1,26 @@
-from typing import Callable
-
 from models import Car, Direction, Field
 from simulation import Simulation
-from visualizer import replay
 
 
 class App:
-    def __init__(
-        self,
-        input_fn: Callable[..., str] = input,
-        output_fn: Callable[..., None] = print,
-    ) -> None:
+    def __init__(self, input_fn=input, output_fn=print):
         self._input = input_fn
         self._print = output_fn
 
-    def run(self) -> None:
+    def run(self):
         while True:
-            field, cars = self._setup_phase()
-            sim = Simulation(field, cars)
-
-            # Collect steps for visualization
-            steps = list(sim.run_steps())
-
-            # Replay visualization if there are steps
-            if steps:
-                replay(field, cars, steps, self._input, self._print)
-
-            # Build results from the already-executed simulation states
-            results = sim.get_results()
+            field, cars = self._setup()
+            results = Simulation(field, cars).run()
             self._show_results(cars, results)
 
             if not self._post_simulation_menu():
                 break
 
-    def _setup_phase(self) -> tuple[Field, list[Car]]:
+    def _setup(self):
         self._print("Welcome to Auto Driving Car Simulation!")
         self._print()
         field = self._get_field()
-        cars: list[Car] = []
+        cars = []
 
         while True:
             self._show_car_list(cars)
@@ -55,7 +38,7 @@ class App:
 
         return field, cars
 
-    def _get_field(self) -> Field:
+    def _get_field(self):
         while True:
             self._print("Please enter the width and height of the simulation field in x y format:")
             parts = self._input().strip().split()
@@ -70,7 +53,7 @@ class App:
                     pass
             self._print("Invalid input. Please enter two positive integers.")
 
-    def _add_car(self, field: Field, existing_cars: list[Car]) -> Car | None:
+    def _add_car(self, field, existing_cars):
         self._print("Please enter the name of the car:")
         name = self._input().strip()
         if not name:
@@ -108,14 +91,14 @@ class App:
 
         return Car(name=name, x=x, y=y, direction=direction, commands=commands)
 
-    def _show_car_list(self, cars: list[Car]) -> None:
+    def _show_car_list(self, cars):
         if cars:
             self._print("Your current list of cars are:")
             for car in cars:
                 self._print(f"- {car}")
             self._print()
 
-    def _show_results(self, cars: list[Car], results: list) -> None:
+    def _show_results(self, cars, results):
         self._print("Your current list of cars are:")
         for car in cars:
             self._print(f"- {car}")
@@ -125,7 +108,7 @@ class App:
             self._print(f"- {result}")
         self._print()
 
-    def _post_simulation_menu(self) -> bool:
+    def _post_simulation_menu(self):
         self._print("Please choose from the following options:")
         self._print("[1] Start over")
         self._print("[2] Exit")

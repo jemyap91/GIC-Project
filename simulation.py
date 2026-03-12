@@ -1,6 +1,4 @@
-from collections.abc import Generator
 from dataclasses import dataclass
-
 from models import Car, Direction, Field, SimulationResult
 
 
@@ -18,93 +16,59 @@ class _CarState:
 
 
 class Simulation:
-    def __init__(self, field: Field, cars: list[Car]) -> None:
+    def __init__(self, field, cars):
         self.field = field
         self.states = [
             _CarState(
-                name=car.name,
-                x=car.x,
-                y=car.y,
-                direction=car.direction,
-                commands=car.commands,
+                name=c.name, x=c.x, y=c.y,
+                direction=c.direction, commands=c.commands,
             )
-            for car in cars
+            for c in cars
         ]
 
-    def run(self) -> list[SimulationResult]:
-        for _ in self.run_steps():
-            pass
-        return self.get_results()
+    def run(self):
+        max_commands = max((len(s.commands) for s in self.states), default=0)
 
-    def get_results(self) -> list[SimulationResult]:
-        """Return results from current state (call after run() or run_steps())."""
+        for step in range(max_commands):
+            for state in self.states:
+                if not state.active or step >= len(state.commands):
+                    continue
+                self._execute(state, state.commands[step])
+                self._check_collisions(state, step + 1)
+
         return [
             SimulationResult(
-                car_name=s.name,
-                x=s.x,
-                y=s.y,
-                direction=s.direction,
-                collided=s.collided,
+                car_name=s.name, x=s.x, y=s.y,
+                direction=s.direction, collided=s.collided,
                 collision_step=s.collision_step,
                 collision_partner=s.collision_partner,
             )
             for s in self.states
         ]
 
-    def _snapshot(self) -> list[dict]:
-        return [
-            {
-                "name": s.name,
-                "x": s.x,
-                "y": s.y,
-                "direction": s.direction,
-                "collided": s.collided,
-                "collision_step": s.collision_step,
-                "collision_partner": s.collision_partner,
-            }
-            for s in self.states
-        ]
-
-    def run_steps(self) -> Generator[list[dict], None, None]:
-        max_commands = max((len(s.commands) for s in self.states), default=0)
-
-        for step in range(max_commands):
-            for state in self.states:
-                if not state.active:
-                    continue
-                if step >= len(state.commands):
-                    continue
-
-                command = state.commands[step]
-                self._execute_command(state, command)
-                self._check_collisions(state, step + 1)
-
-            yield self._snapshot()
-
-    def _check_collisions(self, moved_state: _CarState, step: int) -> None:
-        for other in self.states:
-            if other is moved_state:
-                continue
-            if other.x == moved_state.x and other.y == moved_state.y:
-                moved_state.active = False
-                moved_state.collided = True
-                moved_state.collision_step = step
-                moved_state.collision_partner = other.name
-
-                if other.active:
-                    other.active = False
-                    other.collided = True
-                    other.collision_step = step
-                    other.collision_partner = moved_state.name
-
-    def _execute_command(self, state: _CarState, command: str) -> None:
+    def _execute(self, state, command):
         if command == "L":
             state.direction = state.direction.turn_left()
         elif command == "R":
             state.direction = state.direction.turn_right()
         elif command == "F":
             dx, dy = state.direction.move_delta()
-            new_x, new_y = state.x + dx, state.y + dy
-            if self.field.is_within_bounds(new_x, new_y):
-                state.x = new_x
-                state.y = new_y
+            nx, ny = state.x + dx, state.y + dy
+            if self.field.is_within_bounds(nx, ny):
+                state.x, state.y = nx, ny
+
+    def _check_collisions(self, moved, step):
+        for other in self.states:
+            if other is moved:
+                continue
+            if other.x == moved.x and other.y == moved.y:
+                moved.active = False
+                moved.collided = True
+                moved.collision_step = step
+                moved.collision_partner = other.name
+
+                if other.active:
+                    other.active = False
+                    other.collided = True
+                    other.collision_step = step
+                    other.collision_partner = moved.name
